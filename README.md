@@ -60,7 +60,7 @@ ZHQ_backend/
    ```
 
 4. **创建数据库**
-   ```sql
+   ```sql-norun
    CREATE DATABASE zhq CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    ```
 
@@ -137,9 +137,6 @@ feat: 添加用户注册功能
 - [@James-FS](https://github.com/James-FS) - 项目负责人
 - 待添加其他团队成员...
 
-## 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
 ## 更新日志
 
