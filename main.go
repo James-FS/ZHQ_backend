@@ -4,6 +4,7 @@ import (
 	"log"
 	"zhq-backend/config"
 	"zhq-backend/database"
+	"zhq-backend/middleware"
 	"zhq-backend/routes"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,9 @@ func main() {
 
 	// 创建Gin引擎
 	r := gin.Default()
+
+	// 添加CORS中间件
+	r.Use(middleware.CORS())
 
 	// 设置路由
 	routes.SetupRoutes(r)
