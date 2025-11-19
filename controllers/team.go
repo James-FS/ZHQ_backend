@@ -103,3 +103,28 @@ func CreateTeam(c *gin.Context) {
 	//6.返回结果
 	utils.SuccessWithMessage(c, "队伍创建成功", team)
 }
+
+func UpdateTeam(c *gin.Context) {
+	teamID := c.Param("team_id")
+	if teamID == "" {
+		utils.BadRequest(c, "teamID不能为空")
+		return
+	}
+
+	var team models.Team
+	if err := database.DB.Where("team_id = ?", teamID).First(&team).Error; err != nil {
+		utils.BadRequest(c, "队伍不存在")
+		return
+	}
+
+	if err := c.ShouldBindJSON(&team); err != nil {
+		utils.BadRequest(c, "参数错误: "+err.Error())
+		return
+	}
+
+	if err := database.DB.Save(&team).Error; err != nil {
+		utils.InternalServerError(c, "更新队伍失败: "+err.Error())
+		return
+	}
+	utils.SuccessWithMessage(c, "编辑成功", team)
+}
