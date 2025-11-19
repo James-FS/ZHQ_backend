@@ -8,7 +8,6 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/schema"
 )
 
 var DB *gorm.DB
@@ -26,11 +25,7 @@ func Init() {
 	)
 
 	// 连接数据库
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{NamingStrategy: schema.NamingStrategy{
-		TablePrefix:   "t_",
-		SingularTable: true,
-		NoLowerCase:   true},
-	})
+	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 
 	if err != nil {
 		log.Printf("Failed to connect to database: %v", err)
