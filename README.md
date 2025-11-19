@@ -1,4 +1,4 @@
-# ZHQ 微信小程序后端项目
+# 智汇圈微信小程序后端项目
 
 基于 Go + Gin + MySQL 的微信小程序后端服务
 
@@ -50,7 +50,7 @@ ZHQ_backend/
 
 2. **安装依赖**
    ```bash
-   go mod download
+   go mod tidy
    ```
 
 3. **配置环境变量**

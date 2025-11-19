@@ -2,6 +2,7 @@ package models
 
 type User struct {
 	BaseModel
+	UserID   string `json:"user_id" gorm:"type:varchar(64);uniqueIndex;not null;comment:用户业务ID(对外唯一标识)"`
 	OpenID   string `json:"openid" gorm:"type:varchar(191);uniqueIndex;not null;comment:微信OpenID"`
 	UnionID  string `json:"unionid" gorm:"type:varchar(191);index;comment:微信UnionID"`
 	Nickname string `json:"nickname" gorm:"type:varchar(100);comment:昵称"`

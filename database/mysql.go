@@ -41,6 +41,7 @@ func Init() {
 func autoMigrate() {
 	err := DB.AutoMigrate(
 		&models.User{},
+		&models.Team{},
 		// 添加其他模型...
 	)
 	if err != nil {

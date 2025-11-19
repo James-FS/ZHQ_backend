@@ -29,6 +29,9 @@ func SetupRoutes(r *gin.Engine) {
 			auth.POST("/login", controllers.WeChatLogin)
 		}
 
+		//广场页面的队伍列表（无需登录）
+		v1.GET("/teams", controllers.GetTeamList)
+
 		// 需要认证的路由
 		authorized := v1.Group("/")
 		authorized.Use(middleware.AuthRequired())
