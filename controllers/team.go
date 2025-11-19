@@ -17,13 +17,13 @@ func GetTeamList(c *gin.Context) {
 	//1.计算总数
 	tx := database.GetDB().Model(&models.Team{})
 	if err := tx.Count(&total).Error; err != nil {
-		utils.InternalServerError(c, "获取队伍总数失败:"+err.Error())
+		utils.InternalServerError(c, "获取队伍总数失败:", err)
 		return
 	}
 
 	//2.获取列表（按创建时间排序）
 	if err := tx.Order("created_at DESC").Find(&teams).Error; err != nil {
-		utils.InternalServerError(c, "获取队伍列表失败:"+err.Error())
+		utils.InternalServerError(c, "获取队伍列表失败:", err)
 		return
 	}
 
@@ -96,7 +96,7 @@ func CreateTeam(c *gin.Context) {
 
 	//5.存入数据库
 	if err := database.GetDB().Create(&team).Error; err != nil {
-		utils.InternalServerError(c, "创建队伍失败:"+err.Error())
+		utils.InternalServerError(c, "创建队伍失败:", err)
 		return
 	}
 
@@ -123,7 +123,7 @@ func UpdateTeam(c *gin.Context) {
 	}
 
 	if err := database.DB.Save(&team).Error; err != nil {
-		utils.InternalServerError(c, "更新队伍失败: "+err.Error())
+		utils.InternalServerError(c, "更新队伍失败: ", err)
 		return
 	}
 	utils.SuccessWithMessage(c, "编辑成功", team)

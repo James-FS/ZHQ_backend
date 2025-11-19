@@ -51,7 +51,7 @@ func autoMigrate() {
 	log.Println("Database migration completed for 'zhq' database")
 }
 
-// 获取数据库实例
+// GetDB 获取数据库实例
 func GetDB() *gorm.DB {
 	return DB
 }
