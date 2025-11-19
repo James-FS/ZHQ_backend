@@ -31,6 +31,7 @@ func SetupRoutes(r *gin.Engine) {
 
 		//广场页面的队伍列表（无需登录）
 		v1.GET("/teams", controllers.GetTeamList)
+		v1.GET("/team/details/:team_id", controllers.GetTeamDetails)
 
 		// 需要认证的路由
 		authorized := v1.Group("/")
