@@ -43,11 +43,12 @@ func SetupRoutes(r *gin.Engine) {
 				user.GET("/profile", controllers.GetUserProfile)
 				user.PUT("/profile", controllers.UpdateUserProfile)
 			}
-			// 组队相关
-			team := authorized.Group("/team/edit")
-			{
-				team.PUT("/:team_id", controllers.UpdateTeam)
 
+			// 队伍相关
+			teams := authorized.Group("/teams")
+			{
+				teams.POST("", controllers.CreateTeam) // 创建队伍
+				// 后续可添加：修改队伍、解散队伍、申请加入等接口
 			}
 		}
 	}

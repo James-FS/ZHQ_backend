@@ -4,7 +4,7 @@ type Team struct {
 	BaseModel
 	TeamID              string `json:"team_id" gorm:"type:varchar(64);uniqueIndex;not null;comment:队伍ID(对外唯一业务标识)"`
 	TeamName            string `json:"team_name" gorm:"type:varchar(100);not null;comment:队伍名称"`
-	Content             string `json:"description" gorm:"type:text;comment:队伍项目内容"`
+	Content             string `json:"content" gorm:"type:text;comment:队伍项目内容"`
 	Pictures            string `json:"pictures" gorm:"type:text;comment:队伍项目图片，多个图片URL以逗号分隔"`
 	CreatorID           uint   `json:"creator_id" gorm:"not null;comment:创建者用户ID"`
 	Status              int    `json:"status" gorm:"default:1;comment:状态 1:招募中 2:已截止 3:开发中 4:已完成"`
