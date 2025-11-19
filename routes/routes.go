@@ -40,7 +40,7 @@ func SetupRoutes(r *gin.Engine) {
 			// 用户相关
 			user := authorized.Group("/user")
 			{
-				user.GET("/profile", controllers.GetUserProfile)
+				user.GET("", controllers.GetUserProfile)
 				user.PUT("/profile", controllers.UpdateUserProfile)
 			}
 
