@@ -117,14 +117,32 @@ func UpdateTeam(c *gin.Context) {
 		return
 	}
 
-	if err := c.ShouldBindJSON(&team); err != nil {
+	var updateData map[string]interface{}
+	if err := c.ShouldBindJSON(&updateData); err != nil {
 		utils.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
-	if err := database.DB.Save(&team).Error; err != nil {
+	allowedFields := map[string]bool{
+		"team_name":   true,
+		"description": true,
+		"category":    true,
+		"max_members": true,
+		"status":      true,
+	}
+
+	// ③ 过滤掉不允许更新的字段
+	for key := range updateData {
+		if !allowedFields[key] {
+			delete(updateData, key)
+		}
+	}
+
+	// ④ 只更新指定的字段
+	if err := database.DB.Model(&team).Updates(updateData).Error; err != nil {
 		utils.InternalServerError(c, "更新队伍失败: ", err)
 		return
 	}
+
 	utils.SuccessWithMessage(c, "编辑成功", team)
 }
