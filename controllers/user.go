@@ -84,3 +84,35 @@ func UpdateUserProfile(c *gin.Context) {
 		"user": user,
 	})
 }
+
+// 获取用户收藏
+func GetUserCollection(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		utils.BadRequest(c, "用户未鉴权")
+		return
+	}
+	var collections []models.UserCollection
+	var total int64
+	page := 1
+	pageSize := 10
+	if err := database.DB.Where("user_id = ?", userID).
+		Model(&models.UserCollection{}).
+		Count(&total).Error; err != nil {
+		utils.BadRequest(c, "查询收藏总数失败")
+		return
+	}
+
+	if err := database.DB.Where("user_id = ?", userID).
+		Order("created_at DESC").
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
+		Find(&collections).Error; err != nil {
+		utils.BadRequest(c, "查询收藏列表失败")
+		return
+	}
+	utils.Success(c, gin.H{
+		"total": total,
+		"list":  collections,
+	})
+}
