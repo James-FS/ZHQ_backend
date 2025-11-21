@@ -13,7 +13,7 @@ func AuthRequired() gin.HandlerFunc {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			utils.Unauthorized(c, "Authorization header required")
-			c.Abort()
+			c.Abort() //中止当前请求，不再执行后续的中间件和处理函数
 			return
 		}
 
@@ -25,17 +25,17 @@ func AuthRequired() gin.HandlerFunc {
 			return
 		}
 
-		// 这里后续会添加JWT验证逻辑
-		// 现在先简单验证token不为空
-		if tokenString == "" {
-			utils.Unauthorized(c, "Token is required")
+		// 验证JWT逻辑
+		claims, err := utils.ParseToken(tokenString)
+		if err != nil {
+			utils.Unauthorized(c, "Invalid or expired token")
 			c.Abort()
 			return
 		}
 
-		// 设置用户信息到上下文（后续实现JWT验证后会设置真实用户信息）
-		c.Set("user_id", 1) // 临时设置，后续会从JWT中解析
-
+		// 设置用户信息到上下文
+		c.Set("user_id", claims.UserID)
+		c.Set("open_id", claims.OpenID)
 		c.Next()
 	}
 }
