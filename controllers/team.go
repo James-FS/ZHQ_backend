@@ -27,9 +27,52 @@ func GetTeamList(c *gin.Context) {
 		return
 	}
 
-	//3.返回结果
+	//3.获取队伍创建者UserID
+	var creatorIDs []string
+	for _, team := range teams {
+		creatorIDs = append(creatorIDs, team.CreatorID)
+	}
+
+	// 4.批量查询用户信息（根据string类型的UserID查询）
+	var users []models.User
+	if err := database.GetDB().Where("user_id IN (?)", creatorIDs).Find(&users).Error; err != nil {
+		utils.InternalServerError(c, "获取创建者信息失败:", err)
+		return
+	}
+
+	// 5.将用户信息映射为map，key为string类型的UserID
+	userMap := make(map[string]models.User)
+	for _, user := range users {
+		userMap[user.UserID] = user // 假设User模型中用户ID字段是UserID(string类型)
+	}
+
+	// 6.组装包含用户信息的响应数据
+	type TeamWithCreator struct {
+		models.Team
+		CreatorNickname string `json:"creator_nickname"`
+		CreatorAvatar   string `json:"creator_avatar"`
+	}
+
+	var resultList []TeamWithCreator
+	for _, team := range teams {
+		creator, exists := userMap[team.CreatorID]
+		creatorNickname := ""
+		creatorAvatar := ""
+		if exists {
+			creatorNickname = creator.Nickname
+			creatorAvatar = creator.Avatar
+		}
+
+		resultList = append(resultList, TeamWithCreator{
+			Team:            team,
+			CreatorNickname: creatorNickname,
+			CreatorAvatar:   creatorAvatar,
+		})
+	}
+
+	// 7.返回结果
 	utils.Success(c, gin.H{
-		"list":  teams,
+		"list":  resultList,
 		"total": total,
 	})
 }
@@ -84,7 +127,7 @@ func CreateTeam(c *gin.Context) {
 		TeamName:            req.TeamName,
 		Content:             req.Content,
 		Pictures:            req.Pictures,
-		CreatorID:           userID.(uint),
+		CreatorID:           userID.(string),
 		MaxMembers:          req.MaxMembers,
 		CurrentMembers:      1,
 		Tags:                req.Tags,
