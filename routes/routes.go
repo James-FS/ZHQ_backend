@@ -50,9 +50,8 @@ func SetupRoutes(r *gin.Engine) {
 			// 队伍相关
 			teams := authorized.Group("/teams")
 			{
-				teams.POST("", controllers.CreateTeam) // 创建队伍
-				teams.GET("/detail/:team_id", controllers.GetTeamDetails)
-				teams.PUT("/edit/:team_id", controllers.UpdateTeam)
+				teams.POST("", controllers.CreateTeam)              // 创建队伍
+				teams.PUT("/edit/:team_id", controllers.UpdateTeam) //编辑队伍
 				// 后续可添加：修改队伍、解散队伍、申请加入等接口
 			}
 

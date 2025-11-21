@@ -92,7 +92,7 @@ func GetUserCollection(c *gin.Context) {
 		utils.BadRequest(c, "用户未鉴权")
 		return
 	}
-	var collections []models.UserCollection
+	var teamIDs []string
 	var total int64
 	page := 1
 	pageSize := 10
@@ -105,15 +105,15 @@ func GetUserCollection(c *gin.Context) {
 
 	if err := database.DB.Where("user_id = ?", userID).
 		Order("created_at DESC").
-		Offset((page - 1) * pageSize).
+		Offset((page-1)*pageSize).
 		Limit(pageSize).
-		Find(&collections).Error; err != nil {
+		Pluck("team_id", &teamIDs).Error; err != nil {
 		utils.BadRequest(c, "查询收藏列表失败")
 		return
 	}
 	utils.Success(c, gin.H{
 		"total": total,
-		"list":  collections,
+		"list":  teamIDs,
 	})
 }
 
