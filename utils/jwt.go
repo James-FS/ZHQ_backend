@@ -9,13 +9,13 @@ import (
 
 // Claims 自定义claims
 type Claims struct {
-	UserID uint   `json:"user_id"`
+	UserID string `json:"user_id"`
 	OpenID string `json:"open_id"`
 	jwt.RegisteredClaims
 }
 
 // GenerateToken 生成JWT令牌
-func GenerateToken(userID uint, openID string) (string, error) {
+func GenerateToken(userID string, openID string) (string, error) {
 	//设置过期时间为7天
 	expirationTime := time.Now().Add(7 * 24 * time.Hour)
 

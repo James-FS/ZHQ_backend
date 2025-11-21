@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// 微信登录
+// WeChatLogin 微信登录
 func WeChatLogin(c *gin.Context) {
 	// 获取请求参数
 	var req struct {
@@ -46,7 +46,7 @@ func WeChatLogin(c *gin.Context) {
 	}
 
 	//生成JWT令牌
-	token, err := utils.GenerateToken(user.ID, user.OpenID)
+	token, err := utils.GenerateToken(user.UserID, user.OpenID)
 	if err != nil {
 		utils.InternalServerError(c, "生成令牌失败: ", err)
 		return
