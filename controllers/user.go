@@ -25,15 +25,18 @@ func MockUser() models.User {
 func GetUserProfile(c *gin.Context) {
 	// 从中间件中获取用户ID
 	userID := c.GetString("user_id")
+	var user models.User
 	if userID == "" {
 		utils.BadRequest(c, "用户未鉴权")
 		return
 	}
 
-	var user models.User
-	user = MockUser()
-	// 这里后续会从数据库查询用户信息
-	// 现在先返回模拟数据
+	if err := database.DB.Where("user_id = ?", userID).First(&user).Error; err != nil {
+		utils.BadRequest(c, "用户不存在")
+		return
+	}
+
+	//user = MockUser()
 	utils.Success(c, gin.H{
 		"user": user,
 	})
@@ -51,7 +54,7 @@ func UpdateUserProfile(c *gin.Context) {
 	var user models.User
 	user = MockUser()
 
-	userID := c.Param("user_id")
+	userID := c.GetString("user_id")
 	//userID = "0"
 	if userID == "" {
 		utils.BadRequest(c, "userID不能为空")
