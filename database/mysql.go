@@ -43,6 +43,8 @@ func autoMigrate() {
 	err := DB.AutoMigrate(
 		&models.User{},
 		&models.Team{},
+		&models.UserResume{},
+		&models.UserCollection{},
 		// 添加其他模型...
 	)
 	if err != nil {
