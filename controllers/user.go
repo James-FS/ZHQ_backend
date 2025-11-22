@@ -1,6 +1,10 @@
 package controllers
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
 	"zhq-backend/database"
 	"zhq-backend/models"
 	"zhq-backend/utils"
@@ -86,6 +90,61 @@ func UpdateUserProfile(c *gin.Context) {
 	utils.SuccessWithMessage(c, "更新用户资料成功", gin.H{
 		"user": user,
 	})
+}
+
+// 上传用户头像
+func UploadAvatar(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		utils.BadRequest(c, "userID不能为空")
+		return
+	}
+	avatar, err := c.FormFile("avatar")
+	if err != nil {
+		utils.BadRequest(c, "上传失败")
+		return
+	}
+	if avatar.Size > 4*1024*1024 {
+		utils.BadRequest(c, "上传图片应小于4MB")
+	}
+	ext := filepath.Ext(avatar.Filename)
+	AvatarFields := map[string]bool{
+		".jpg":  true,
+		".png":  true,
+		".jpeg": true,
+		".webp": true,
+	}
+	if !AvatarFields[ext] {
+		utils.BadRequest(c, "只支持 jpg, jpeg, png, webp 格式")
+		return
+	}
+
+	uploadDir := "public/upload/avatars"
+	timestamp := time.Now().Unix()
+	fileName := fmt.Sprintf("user_%d_%d%s", userID, timestamp, ext)
+	filePath := filepath.Join(uploadDir, fileName)
+	if err := c.SaveUploadedFile(avatar, filePath); err != nil {
+		utils.InternalServerError(c, "保存文件失败", err)
+		return
+	}
+	avatarURL := fmt.Sprintf("http://localhost:8080/upload/avatars/%s", fileName)
+	var user models.User
+	if err := database.DB.Where("user_id = ?", userID).First(&user).Error; err != nil {
+		utils.BadRequest(c, "用户不存在")
+		return
+	}
+	if user.Avatar != "" {
+		oldFileName := filepath.Base(user.Avatar)
+		oldFilePath := filepath.Join(uploadDir, oldFileName)
+		if err := os.Remove(oldFilePath); err != nil {
+			utils.BadRequest(c, "删除旧头像失败")
+		}
+	}
+	if err := database.DB.Model(&user).Update("Avatar", avatarURL).Error; err != nil {
+		utils.BadRequest(c, "更新头像失败")
+		return
+	}
+	utils.SuccessWithMessage(c, "更新头像成功", gin.H{})
 }
 
 // 获取用户收藏
