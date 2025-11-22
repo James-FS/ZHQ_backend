@@ -10,6 +10,7 @@ import (
 	"zhq-backend/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func MockUser() models.User {
@@ -179,6 +180,7 @@ func GetUserCollection(c *gin.Context) {
 	})
 }
 
+// 添加收藏
 func AddUserCollection(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -209,6 +211,7 @@ func AddUserCollection(c *gin.Context) {
 
 }
 
+// 移除收藏
 func RemoveUserCollection(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -234,4 +237,57 @@ func RemoveUserCollection(c *gin.Context) {
 		utils.InternalServerError(c, "移除收藏失败", err)
 	}
 	utils.SuccessWithMessage(c, "移除成功", collections)
+}
+
+// 上传简历
+func UploadResume(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		utils.BadRequest(c, "用户未鉴权")
+		return
+	}
+	file, err := c.FormFile("file")
+	if err != nil {
+		utils.BadRequest(c, "上传失败")
+		return
+	}
+	if file.Size > 4*1024*1024 {
+		utils.BadRequest(c, "上传文件应小于4MB")
+		return
+	}
+	ext := filepath.Ext(file.Filename)
+	ResumeFields := map[string]bool{
+		".jpg":  true,
+		".png":  true,
+		".jpeg": true,
+		".webp": true,
+		".pdf":  true,
+		".doc":  true,
+		".docx": true,
+	}
+	if !ResumeFields[ext] {
+		utils.BadRequest(c, "上传文件格式不符合要求")
+		return
+	}
+	uploadDir := "public/upload/resumes"
+	ResumeName := c.PostForm("fileName")
+	filePath := filepath.Join(uploadDir, ResumeName)
+	resume := models.UserResume{
+		UserID:     userID,
+		ResumeID:   uuid.New().String(),
+		ResumeName: ResumeName,
+		FilePath:   "/upload/resumes/" + ResumeName,
+		FileType:   ext,
+	}
+
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		utils.BadRequest(c, "文件保存失败")
+		return
+	}
+
+	if err := database.DB.Create(&resume).Error; err != nil {
+		utils.BadRequest(c, "上传简历失败")
+		return
+	}
+	utils.SuccessWithMessage(c, "上传简历成功", gin.H{"resume": resume})
 }
