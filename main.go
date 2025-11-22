@@ -25,7 +25,7 @@ func main() {
 
 	// 创建Gin引擎
 	r := gin.Default()
-
+	r.Static("/upload", "./public/upload")
 	// 添加CORS中间件
 	r.Use(middleware.CORS())
 
