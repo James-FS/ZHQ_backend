@@ -2,19 +2,19 @@ package models
 
 type Team struct {
 	BaseModel
-	TeamID              string   `json:"team_id" gorm:"type:varchar(64);uniqueIndex;not null;comment:队伍ID(对外唯一业务标识)"`
-	TeamName            string   `json:"team_name" gorm:"type:varchar(100);not null;comment:队伍名称"`
-	Content             string   `json:"content" gorm:"type:text;comment:队伍项目内容"`
-	Pictures            string   `json:"pictures" gorm:"type:text;comment:队伍项目图片，多个图片URL以逗号分隔"`
-	CreatorID           string   `json:"creator_id" gorm:"not null;comment:创建者用户ID"`
-	Status              int      `json:"status" gorm:"default:1;comment:状态 1:招募中 2:已截止 3:开发中 4:已完成"`
-	MaxMembers          int      `json:"max_members" gorm:"default:5;comment:最大成员数"`
-	CurrentMembers      int      `json:"current_members" gorm:"default:1;comment:当前成员数"`
-	Tags                []string `json:"tags" gorm:"type:json;comment:标签数组"`
-	AnticipativeOutcome string   `json:"anticipative_outcome" gorm:"varchar(255);comment:预期成果"`
-	RequireSkills       string   `json:"require_skills" gorm:"varchar(255);comment:所需技能"`
-	RelativeContest     string   `json:"relative_contest" gorm:"varchar(255);comment:相关赛事"`
-	ProjectCycle        string   `json:"project_cycle" gorm:"varchar(100);comment:项目周期，如'3个月'、'半年'"`
+	TeamID              string `json:"team_id" gorm:"type:varchar(64);uniqueIndex;not null;comment:队伍ID(对外唯一业务标识)"`
+	TeamName            string `json:"team_name" gorm:"type:varchar(100);not null;comment:队伍名称"`
+	Content             string `json:"content" gorm:"type:text;comment:队伍项目内容"`
+	Pictures            string `json:"pictures" gorm:"type:text;comment:队伍项目图片，多个图片URL以逗号分隔"`
+	CreatorID           string `json:"creator_id" gorm:"not null;comment:创建者用户ID"`
+	Status              int    `json:"status" gorm:"default:1;comment:状态 1:招募中 2:已截止 3:开发中 4:已完成"`
+	MaxMembers          int    `json:"max_members" gorm:"default:5;comment:最大成员数"`
+	CurrentMembers      int    `json:"current_members" gorm:"default:1;comment:当前成员数"`
+	Tags                string `json:"tags" gorm:"type:json;comment:标签数组（JSON格式字符串）"`
+	AnticipativeOutcome string `json:"anticipative_outcome" gorm:"varchar(255);comment:预期成果"`
+	RequireSkills       string `json:"require_skills" gorm:"varchar(255);comment:所需技能"`
+	RelativeContest     string `json:"relative_contest" gorm:"varchar(255);comment:相关赛事"`
+	ProjectCycle        string `json:"project_cycle" gorm:"varchar(100);comment:项目周期，如'3个月'、'半年'"`
 }
 
 // TableName 设置表名

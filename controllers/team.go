@@ -5,6 +5,8 @@ import (
 	"zhq-backend/models"
 	"zhq-backend/utils"
 
+	"encoding/json"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -49,8 +51,9 @@ func GetTeamList(c *gin.Context) {
 	// 6.组装包含用户信息的响应数据
 	type TeamWithCreator struct {
 		models.Team
-		CreatorNickname string `json:"creator_nickname"`
-		CreatorAvatar   string `json:"creator_avatar"`
+		CreatorNickname string   `json:"creator_nickname"`
+		CreatorAvatar   string   `json:"creator_avatar"`
+		TagsArray       []string `json:"tags"`
 	}
 
 	var resultList []TeamWithCreator
@@ -63,10 +66,19 @@ func GetTeamList(c *gin.Context) {
 			creatorAvatar = creator.Avatar
 		}
 
+		var tagsArray []string
+		if team.Tags != "" {
+			err := json.Unmarshal([]byte(team.Tags), &tagsArray)
+			if err != nil {
+				return
+			}
+		}
+
 		resultList = append(resultList, TeamWithCreator{
 			Team:            team,
 			CreatorNickname: creatorNickname,
 			CreatorAvatar:   creatorAvatar,
+			TagsArray:       tagsArray,
 		})
 	}
 
@@ -122,6 +134,13 @@ func CreateTeam(c *gin.Context) {
 	// 3. 生成唯一TeamID（UUID）
 	teamID := uuid.New().String()
 
+	// 新增：将 tags 切片转换为 JSON 字符串
+	tagsJSON, err := json.Marshal(req.Tags)
+	if err != nil {
+		utils.BadRequest(c, "标签格式错误: "+err.Error())
+		return
+	}
+
 	// 4.构造队伍数据
 	team := models.Team{
 		TeamID:              teamID,
@@ -131,7 +150,7 @@ func CreateTeam(c *gin.Context) {
 		CreatorID:           userID.(string),
 		MaxMembers:          req.MaxMembers,
 		CurrentMembers:      1,
-		Tags:                req.Tags,
+		Tags:                string(tagsJSON),
 		Status:              1, // 默认状态为招募中
 		AnticipativeOutcome: req.AnticipativeOutcome,
 		RequireSkills:       req.RequireSkills,
