@@ -104,14 +104,15 @@ func CreateTeam(c *gin.Context) {
 
 	//2.绑定并校验请求参数
 	var req struct {
-		TeamName            string `json:"team_name" binding:"required,min=1,max=100"`
-		Content             string `json:"content" binding:"required"`
-		Pictures            string `json:"pictures"`
-		MaxMembers          int    `json:"max_members" binding:"required,min=1,max=50"`
-		Tags                string `json:"tags"`
-		AnticipativeOutcome string `json:"anticipative_outcome"`
-		RequireSkills       string `json:"require_skills"`
-		RelativeContest     string `json:"relative_contest"`
+		TeamName            string   `json:"team_name" binding:"required,min=1,max=100"`
+		Content             string   `json:"content" binding:"required"`
+		Pictures            string   `json:"pictures"`
+		MaxMembers          int      `json:"max_members" binding:"required,min=1,max=50"`
+		Tags                []string `json:"tags"`
+		AnticipativeOutcome string   `json:"anticipative_outcome"`
+		RequireSkills       string   `json:"require_skills"`
+		RelativeContest     string   `json:"relative_contest"`
+		ProjectCycle        string   `json:"project_cycle" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, "参数错误:"+err.Error())
@@ -135,6 +136,7 @@ func CreateTeam(c *gin.Context) {
 		AnticipativeOutcome: req.AnticipativeOutcome,
 		RequireSkills:       req.RequireSkills,
 		RelativeContest:     req.RelativeContest,
+		ProjectCycle:        req.ProjectCycle,
 	}
 
 	//5.存入数据库
@@ -147,6 +149,7 @@ func CreateTeam(c *gin.Context) {
 	utils.SuccessWithMessage(c, "队伍创建成功", team)
 }
 
+// UpdateTeam 编辑队伍信息
 func UpdateTeam(c *gin.Context) {
 	teamID := c.Param("team_id")
 	if teamID == "" {
@@ -167,11 +170,12 @@ func UpdateTeam(c *gin.Context) {
 	}
 
 	allowedFields := map[string]bool{
-		"team_name":   true,
-		"description": true,
-		"category":    true,
-		"max_members": true,
-		"status":      true,
+		"team_name":     true,
+		"description":   true,
+		"category":      true,
+		"max_members":   true,
+		"status":        true,
+		"project_cycle": true,
 	}
 
 	// ③ 过滤掉不允许更新的字段
