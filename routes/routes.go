@@ -45,6 +45,8 @@ func SetupRoutes(r *gin.Engine) {
 				user.GET("/collection", controllers.GetUserCollection)
 				user.PUT("/collection/add", controllers.AddUserCollection)
 				user.DELETE("/collection/remove", controllers.RemoveUserCollection)
+				user.PUT("/uploadAvatar", controllers.UploadAvatar)
+				user.POST("/uploadResume", controllers.UploadResume)
 			}
 
 			// 队伍相关
