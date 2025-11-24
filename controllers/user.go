@@ -186,7 +186,7 @@ func CheckUserCollection(c *gin.Context) {
 		utils.BadRequest(c, "用户未鉴权")
 		return
 	}
-	teamID := c.Param("team_id")
+	teamID := c.Query("team_id")
 	if teamID == "" {
 		utils.BadRequest(c, "队伍不能为空")
 		return
@@ -194,7 +194,7 @@ func CheckUserCollection(c *gin.Context) {
 	var count int64
 	database.DB.Where("user_id = ? AND team_id =?", userID, teamID).Count(&count)
 	CollectionStatus := count > 0
-	utils.SuccessWithMessage(c, "该页面已收藏", gin.H{
+	utils.SuccessWithMessage(c, "", gin.H{
 		"CollectionStatus": CollectionStatus,
 	})
 }
@@ -207,7 +207,7 @@ func AddUserCollection(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Query("team_id")
 	if teamID == "" {
 		utils.BadRequest(c, "teamID不能为空")
 		return
@@ -238,7 +238,7 @@ func RemoveUserCollection(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Query("team_id")
 	if teamID == "" {
 		utils.BadRequest(c, "teamID不能为空")
 		return
