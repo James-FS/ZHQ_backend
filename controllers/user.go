@@ -180,6 +180,25 @@ func GetUserCollection(c *gin.Context) {
 	})
 }
 
+func CheckUserCollection(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		utils.BadRequest(c, "用户未鉴权")
+		return
+	}
+	teamID := c.Param("team_id")
+	if teamID == "" {
+		utils.BadRequest(c, "队伍不能为空")
+		return
+	}
+	var count int64
+	database.DB.Where("user_id = ? AND team_id =?", userID, teamID).Count(&count)
+	CollectionStatus := count > 0
+	utils.SuccessWithMessage(c, "该页面已收藏", gin.H{
+		"CollectionStatus": CollectionStatus,
+	})
+}
+
 // 添加收藏
 func AddUserCollection(c *gin.Context) {
 	userID := c.GetString("user_id")
