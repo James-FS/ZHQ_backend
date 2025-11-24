@@ -43,6 +43,7 @@ func SetupRoutes(r *gin.Engine) {
 				user.GET("", controllers.GetUserProfile)
 				user.PUT("/profile", controllers.UpdateUserProfile)
 				user.GET("/collection", controllers.GetUserCollection)
+				user.GET("/collection/status/:team_id", controllers.CheckUserCollection)
 				user.PUT("/collection/add", controllers.AddUserCollection)
 				user.DELETE("/collection/remove", controllers.RemoveUserCollection)
 				user.PUT("/uploadAvatar", controllers.UploadAvatar)
