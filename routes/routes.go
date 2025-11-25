@@ -43,8 +43,9 @@ func SetupRoutes(r *gin.Engine) {
 				user.GET("", controllers.GetUserProfile)
 				user.PUT("/profile", controllers.UpdateUserProfile)
 				user.GET("/collection", controllers.GetUserCollection)
-				user.PUT("/collection/add", controllers.AddUserCollection)
-				user.DELETE("/collection/remove", controllers.RemoveUserCollection)
+				user.GET("/collection/status", controllers.CheckUserCollection)
+				user.POST("/collection", controllers.AddUserCollection)
+				user.DELETE("/collection", controllers.RemoveUserCollection)
 				user.PUT("/uploadAvatar", controllers.UploadAvatar)
 				user.POST("/uploadResume", controllers.UploadResume)
 			}
@@ -54,6 +55,7 @@ func SetupRoutes(r *gin.Engine) {
 			{
 				teams.POST("", controllers.CreateTeam)              // 创建队伍
 				teams.PUT("/edit/:team_id", controllers.UpdateTeam) //编辑队伍
+				teams.GET("/details", controllers.GetTeamDetails)
 				// 后续可添加：修改队伍、解散队伍、申请加入等接口
 			}
 

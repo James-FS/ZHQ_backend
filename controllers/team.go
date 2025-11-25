@@ -91,7 +91,7 @@ func GetTeamList(c *gin.Context) {
 
 // GetTeamDetails 获取队伍详情
 func GetTeamDetails(c *gin.Context) {
-	teamID := c.Param("team_id")
+	teamID := c.Query("team_id")
 	if teamID == "" {
 		utils.BadRequest(c, "teamID不能为空")
 		return
@@ -170,7 +170,7 @@ func CreateTeam(c *gin.Context) {
 
 // UpdateTeam 编辑队伍信息
 func UpdateTeam(c *gin.Context) {
-	teamID := c.Param("team_id")
+	teamID := c.Query("id")
 	if teamID == "" {
 		utils.BadRequest(c, "teamID不能为空")
 		return

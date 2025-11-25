@@ -26,7 +26,7 @@ func MockUser() models.User {
 	}
 }
 
-// GetUserProfile 获取用户信息
+// 获取用户信息
 func GetUserProfile(c *gin.Context) {
 	// 从中间件中获取用户ID
 	userID := c.GetString("user_id")
@@ -47,7 +47,7 @@ func GetUserProfile(c *gin.Context) {
 	})
 }
 
-// UpdateUserProfile 更新用户信息
+// 更新用户信息
 func UpdateUserProfile(c *gin.Context) {
 
 	var profileUpdate map[string]interface{}
@@ -73,9 +73,11 @@ func UpdateUserProfile(c *gin.Context) {
 
 	UpdateFields := map[string]bool{
 		"nickname": true,
-		"avatar":   true,
 		"gender":   true,
 		"phone":    true,
+		"college":  true,
+		"major":    true,
+		"tags":     true,
 	}
 	for key := range profileUpdate {
 		if !UpdateFields[key] {
@@ -93,7 +95,7 @@ func UpdateUserProfile(c *gin.Context) {
 	})
 }
 
-// UploadAvatar 上传用户头像
+// 上传用户头像
 func UploadAvatar(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -148,7 +150,7 @@ func UploadAvatar(c *gin.Context) {
 	utils.SuccessWithMessage(c, "更新头像成功", gin.H{})
 }
 
-// GetUserCollection 获取用户收藏
+// 获取用户收藏
 func GetUserCollection(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -166,7 +168,8 @@ func GetUserCollection(c *gin.Context) {
 		return
 	}
 
-	if err := database.DB.Where("user_id = ?", userID).
+	if err := database.DB.Model(&models.UserCollection{}).
+		Where("user_id = ?", userID).
 		Order("created_at DESC").
 		Offset((page-1)*pageSize).
 		Limit(pageSize).
@@ -180,7 +183,41 @@ func GetUserCollection(c *gin.Context) {
 	})
 }
 
-// AddUserCollection 添加收藏
+func CheckUserCollection(c *gin.Context) {
+	userID := c.GetString("user_id")
+	fmt.Printf("✅ userID: %s\n", userID)
+	if userID == "" {
+		utils.BadRequest(c, "用户未鉴权")
+		return
+	}
+
+	teamID := c.Query("team_id")
+	fmt.Printf("✅ teamID: %s\n", teamID)
+	if teamID == "" {
+		utils.BadRequest(c, "队伍不能为空")
+		return
+	}
+
+	var count int64
+	if err := database.DB.Model(&models.UserCollection{}).
+		Where("user_id = ? AND team_id = ?", userID, teamID).
+		Count(&count).Error; err != nil {
+		fmt.Printf("❌ 查询错误: %v\n", err)
+		utils.InternalServerError(c, "查询收藏状态失败:", err)
+		return
+	}
+
+	fmt.Printf("✅ 查询到的记录数: %d\n", count)
+
+	collectionStatus := count > 0
+	fmt.Printf("✅ 收藏状态: %v\n", collectionStatus)
+
+	utils.SuccessWithMessage(c, "查询成功", gin.H{
+		"CollectionStatus": collectionStatus,
+	})
+}
+
+// 添加收藏
 func AddUserCollection(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -188,7 +225,7 @@ func AddUserCollection(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Query("team_id")
 	if teamID == "" {
 		utils.BadRequest(c, "teamID不能为空")
 		return
@@ -211,7 +248,7 @@ func AddUserCollection(c *gin.Context) {
 
 }
 
-// RemoveUserCollection 移除收藏
+// 移除收藏
 func RemoveUserCollection(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -219,7 +256,7 @@ func RemoveUserCollection(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Query("team_id")
 	if teamID == "" {
 		utils.BadRequest(c, "teamID不能为空")
 		return
@@ -233,13 +270,15 @@ func RemoveUserCollection(c *gin.Context) {
 		UserID: userID,
 		TeamID: teamID,
 	}
-	if err := database.GetDB().Unscoped().Delete(&collections).Error; err != nil {
-		utils.InternalServerError(c, "移除收藏失败", err)
+	if err := database.DB.Where("user_id = ? AND team_id = ?", userID, teamID).
+		Delete(&models.UserCollection{}).Error; err != nil {
+		utils.InternalServerError(c, "移除收藏失败:", err)
+		return
 	}
 	utils.SuccessWithMessage(c, "移除成功", collections)
 }
 
-// UploadResume 上传简历
+// 上传简历
 func UploadResume(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
