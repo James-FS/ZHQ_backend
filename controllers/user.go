@@ -73,9 +73,11 @@ func UpdateUserProfile(c *gin.Context) {
 
 	UpdateFields := map[string]bool{
 		"nickname": true,
-		"avatar":   true,
 		"gender":   true,
 		"phone":    true,
+		"college":  true,
+		"major":    true,
+		"tags":     true,
 	}
 	for key := range profileUpdate {
 		if !UpdateFields[key] {
@@ -166,7 +168,8 @@ func GetUserCollection(c *gin.Context) {
 		return
 	}
 
-	if err := database.DB.Where("user_id = ?", userID).
+	if err := database.DB.Model(&models.UserCollection{}).
+		Where("user_id = ?", userID).
 		Order("created_at DESC").
 		Offset((page-1)*pageSize).
 		Limit(pageSize).
@@ -182,20 +185,35 @@ func GetUserCollection(c *gin.Context) {
 
 func CheckUserCollection(c *gin.Context) {
 	userID := c.GetString("user_id")
+	fmt.Printf("✅ userID: %s\n", userID)
 	if userID == "" {
 		utils.BadRequest(c, "用户未鉴权")
 		return
 	}
+
 	teamID := c.Query("team_id")
+	fmt.Printf("✅ teamID: %s\n", teamID)
 	if teamID == "" {
 		utils.BadRequest(c, "队伍不能为空")
 		return
 	}
+
 	var count int64
-	database.DB.Where("user_id = ? AND team_id =?", userID, teamID).Count(&count)
-	CollectionStatus := count > 0
-	utils.SuccessWithMessage(c, "", gin.H{
-		"CollectionStatus": CollectionStatus,
+	if err := database.DB.Model(&models.UserCollection{}).
+		Where("user_id = ? AND team_id = ?", userID, teamID).
+		Count(&count).Error; err != nil {
+		fmt.Printf("❌ 查询错误: %v\n", err)
+		utils.InternalServerError(c, "查询收藏状态失败:", err)
+		return
+	}
+
+	fmt.Printf("✅ 查询到的记录数: %d\n", count)
+
+	collectionStatus := count > 0
+	fmt.Printf("✅ 收藏状态: %v\n", collectionStatus)
+
+	utils.SuccessWithMessage(c, "查询成功", gin.H{
+		"CollectionStatus": collectionStatus,
 	})
 }
 
@@ -252,8 +270,10 @@ func RemoveUserCollection(c *gin.Context) {
 		UserID: userID,
 		TeamID: teamID,
 	}
-	if err := database.GetDB().Unscoped().Delete(&collections).Error; err != nil {
-		utils.InternalServerError(c, "移除收藏失败", err)
+	if err := database.DB.Where("user_id = ? AND team_id = ?", userID, teamID).
+		Delete(&models.UserCollection{}).Error; err != nil {
+		utils.InternalServerError(c, "移除收藏失败:", err)
+		return
 	}
 	utils.SuccessWithMessage(c, "移除成功", collections)
 }

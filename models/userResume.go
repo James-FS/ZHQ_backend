@@ -10,5 +10,5 @@ type UserResume struct {
 }
 
 func (UserResume) TableName() string {
-	return "UserResume"
+	return "user_resume"
 }
