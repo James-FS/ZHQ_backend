@@ -26,7 +26,7 @@ func MockUser() models.User {
 	}
 }
 
-// 获取用户信息
+// GetUserProfile 获取用户信息
 func GetUserProfile(c *gin.Context) {
 	// 从中间件中获取用户ID
 	userID := c.GetString("user_id")
@@ -47,7 +47,7 @@ func GetUserProfile(c *gin.Context) {
 	})
 }
 
-// 更新用户信息
+// UpdateUserProfile 更新用户信息
 func UpdateUserProfile(c *gin.Context) {
 
 	var profileUpdate map[string]interface{}
@@ -93,7 +93,7 @@ func UpdateUserProfile(c *gin.Context) {
 	})
 }
 
-// 上传用户头像
+// UploadAvatar 上传用户头像
 func UploadAvatar(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -148,7 +148,7 @@ func UploadAvatar(c *gin.Context) {
 	utils.SuccessWithMessage(c, "更新头像成功", gin.H{})
 }
 
-// 获取用户收藏
+// GetUserCollection 获取用户收藏
 func GetUserCollection(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -180,7 +180,7 @@ func GetUserCollection(c *gin.Context) {
 	})
 }
 
-// 添加收藏
+// AddUserCollection 添加收藏
 func AddUserCollection(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -211,7 +211,7 @@ func AddUserCollection(c *gin.Context) {
 
 }
 
-// 移除收藏
+// RemoveUserCollection 移除收藏
 func RemoveUserCollection(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -239,7 +239,7 @@ func RemoveUserCollection(c *gin.Context) {
 	utils.SuccessWithMessage(c, "移除成功", collections)
 }
 
-// 上传简历
+// UploadResume 上传简历
 func UploadResume(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
