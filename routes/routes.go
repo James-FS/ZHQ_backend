@@ -27,6 +27,8 @@ func SetupRoutes(r *gin.Engine) {
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/login", controllers.WeChatLogin)
+			auth.POST("/phone-login", controllers.PhonePasswordLogin)
+			auth.POST("/register", controllers.RegisterByPhone)
 		}
 
 		//广场页面的队伍列表（无需登录）
