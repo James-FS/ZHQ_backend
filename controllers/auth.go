@@ -109,6 +109,7 @@ func RegisterByPhone(c *gin.Context) {
 		Password: hashedPassword,
 		Status:   1,
 		Tags:     "[]",
+		OpenID:   "phone_" + uuid.New().String(),
 	}
 
 	if err := db.Create(&user).Error; err != nil {
@@ -135,6 +136,7 @@ func WeChatLogin(c *gin.Context) {
 	wechatResp, err := utils.GetWeChatOpenID(req.Code)
 	if err != nil {
 		utils.BadRequest(c, "微信登录失败: "+err.Error())
+		return
 	}
 
 	//检查用户是否已存在
