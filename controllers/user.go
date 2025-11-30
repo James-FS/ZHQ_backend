@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -57,7 +58,6 @@ func UpdateUserProfile(c *gin.Context) {
 	}
 
 	var user models.User
-	user = MockUser()
 
 	userID := c.GetString("user_id")
 	//userID = "0"
@@ -85,6 +85,16 @@ func UpdateUserProfile(c *gin.Context) {
 		}
 	}
 
+	if tags, ok := profileUpdate["tags"]; ok {
+		if tagsArray, isArray := tags.([]interface{}); isArray {
+			tagsJSON, err := json.Marshal(tagsArray)
+			if err != nil {
+				utils.BadRequest(c, "标签格式错误")
+				return
+			}
+			profileUpdate["tags"] = string(tagsJSON)
+		}
+	}
 	if err := database.DB.Model(&user).Updates(profileUpdate).Error; err != nil {
 		utils.BadRequest(c, "用户资料更新失败")
 		return
