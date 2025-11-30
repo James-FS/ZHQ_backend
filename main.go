@@ -6,6 +6,7 @@ import (
 	"zhq-backend/database"
 	"zhq-backend/middleware"
 	"zhq-backend/routes"
+	"zhq-backend/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -23,6 +24,7 @@ func main() {
 	// 连接数据库
 	database.Init()
 
+	utils.WSManager.Init()
 	// 创建Gin引擎
 	r := gin.Default()
 	r.Static("/upload", "./public/upload")

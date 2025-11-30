@@ -61,6 +61,13 @@ func SetupRoutes(r *gin.Engine) {
 				// 后续可添加：修改队伍、解散队伍、申请加入等接口
 			}
 
+			// 消息相关
+			chat := authorized.Group("/chat")
+			{
+				chat.GET("/ws", controllers.WebSocketHandler)
+				chat.GET("/online", controllers.GetOnlineUsers)
+				chat.GET("/check-online", controllers.CheckUserOnline)
+			}
 		}
 	}
 }
