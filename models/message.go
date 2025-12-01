@@ -8,6 +8,7 @@ type Message struct {
 	SessionID    string `json:"session_id" gorm:"index;not null comment:对话ID"`       // 会话ID（支持群组）
 	Content      string `json:"content" gorm:"type:longtext;not null comment:内容"`    // 富文本内容
 	ContentTypes string `json:"content_type" gorm:"default:'text' comment:内容类型"`     // text, image, file, richtext
+	SendStatus   bool   `json:"send_status" gorm:"comment:发送状态"`
 	Sender       User   `json:"sender" gorm:"foreignKey:SenderID;references:UserID"`
 	Receiver     User   `json:"receiver" gorm:"foreignKey:ReceiverID;references:UserID"`
 }
