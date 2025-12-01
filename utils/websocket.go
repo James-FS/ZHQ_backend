@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"zhq-backend/database"
+	"zhq-backend/models"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -96,15 +99,135 @@ func (wm *WebSocketManager) Run() {
 	}
 }
 
+// GetOrCreateSession 获取或创建会话 ID
+func GetOrCreateSession(userID1, userID2 string) (string, error) {
+	// 确保 userID1 < userID2 以保持一致性
+	if userID1 > userID2 {
+		userID1, userID2 = userID2, userID1
+	}
+
+	// 查找是否已存在该会话
+	var existingSession models.ChatSession
+	result := database.DB.Where("user_id1 = ? AND user_id2 = ?  AND session_type = ?", userID1, userID2, "private").
+		First(&existingSession)
+
+	if result.Error == nil {
+		// 会话已存在
+		return existingSession.SessionID, nil
+	}
+
+	// 创建新会话
+	session := models.ChatSession{
+		SessionID:   uuid.New().String(),
+		SessionType: "private",
+		UserID1:     userID1,
+		UserID2:     userID2,
+	}
+
+	if err := database.DB.Create(&session).Error; err != nil {
+		return "", fmt.Errorf("创建会话失败: %v", err)
+	}
+
+	return session.SessionID, nil
+}
+
+func SaveMessageToDatabase(receiverID string, message interface{}) error {
+	// 将消息转换为 MessagePayload
+	var payload MessagePayload
+
+	if msgPayload, ok := message.(MessagePayload); ok {
+		payload = msgPayload
+	} else {
+		// 如果是 map 格式，转换为 MessagePayload
+		msgJSON, _ := json.Marshal(message)
+		json.Unmarshal(msgJSON, &payload)
+	}
+
+	// 如果消息类型不是 chat，则不保存
+	if payload.Type != "chat" {
+		return nil
+	}
+
+	var sessionID string
+	if sid, ok := payload.Data["session_id"].(string); ok {
+		sessionID = sid
+	}
+	// 创建消息对象
+	msg := models.Message{
+		MessageID:    uuid.New().String(),
+		SenderID:     payload.SenderID,
+		ReceiverID:   receiverID,
+		SessionID:    sessionID,
+		Content:      payload.Content,
+		ContentTypes: "text",
+		SendStatus:   false,
+	}
+
+	// 保存到数据库
+	if err := database.DB.Create(&msg).Error; err != nil {
+		return fmt.Errorf("保存离线消息失败: %v", err)
+	}
+
+	fmt.Printf("💾 离线消息已保存: %s -> %s\n", payload.SenderID, receiverID)
+	return nil
+}
+
+// SendOfflineMessages 发送用户的所有离线消息
+func SendOfflineMessages(userID string) {
+	// 查询所有发送给该用户的消息
+	var messages []models.Message
+	if err := database.DB.Where("receiver_id = ? AND send_status = ?", userID, false).
+		Order("created_at ASC").
+		Find(&messages).Error; err != nil {
+		fmt.Printf("❌ 查询离线消息失败: %v\n", err)
+		return
+	}
+
+	if len(messages) == 0 {
+		return
+	}
+
+	count := 0
+	for _, msg := range messages {
+		// 构造 MessagePayload 格式发送
+		payload := MessagePayload{
+			Type:      "chat",
+			SenderID:  msg.SenderID,
+			Content:   msg.Content,
+			Timestamp: msg.UpdatedAt,
+			Data: map[string]interface{}{
+				"receiver_id": msg.ReceiverID,
+				"session_id":  msg.SessionID,
+				"message_id":  msg.MessageID,
+			},
+		}
+
+		// 检查用户是否已连接
+		WSManager.mu.RLock()
+		client, exists := WSManager.Clients[userID]
+		WSManager.mu.RUnlock()
+
+		if exists && client.IsActive {
+			select {
+			case client.Send <- payload:
+				count++
+				// 发送成功后，更新消息状态为已发送
+				if err := database.DB.Model(&msg).Update("send_status", true).Error; err != nil {
+					fmt.Printf("❌ 更新消息状态失败: %v\n", err)
+				}
+			default:
+				fmt.Printf("⚠️ 无法发送消息（缓冲区已满）: %s\n", msg.MessageID)
+			}
+		}
+	}
+
+	if count > 0 {
+		fmt.Printf("📬 用户 %s 收到 %d 条离线消息\n", userID, count)
+	}
+}
+
 // ============ 客户端管理 ============
 // NewWebSocketClient 创建新的 WebSocket 客户端
-//
-//	userID - 用户 ID
-//	conn - WebSocket 连接对象
-//
-// 返回值：
-//
-//	新创建的 WebSocketClient 对象
 func NewWebSocketClient(userID string, conn *websocket.Conn) *WebSocketClient {
 	return &WebSocketClient{
 		UserID:   userID,
@@ -122,14 +245,14 @@ func (wm *WebSocketManager) SendToUser(userID string, message interface{}) error
 	wm.mu.RUnlock()
 
 	if !exists || !client.IsActive {
-		return fmt.Errorf("用户 %s 未连接", userID)
+		return SaveMessageToDatabase(userID, message)
 	}
 
 	select {
 	case client.Send <- message:
 		return nil
 	default:
-		return fmt.Errorf("无法发送消息给用户 %s（缓冲区已满）", userID)
+		return SaveMessageToDatabase(userID, message)
 	}
 }
 
@@ -210,15 +333,23 @@ func (c *WebSocketClient) ReadMessages() {
 			// 一对一聊天消息 - 发送给指定接收者
 			if receiver, ok := payload.Data["receiver_id"].(string); ok {
 				fmt.Printf("💬 消息转发: %s -> %s\n", c.UserID, receiver)
-				WSManager.SendToUser(receiver, payload)
+				sessionID, err := GetOrCreateSession(c.UserID, receiver)
+				if err != nil {
+					fmt.Printf("❌ 获取会话失败: %v\n", err)
+					continue
+				}
+				payload.Data["session_id"] = sessionID
+				if err := WSManager.SendToUser(receiver, payload); err != nil {
+					fmt.Printf("⚠️ 消息发送失败: %v\n", err)
+				}
 			}
 
-		case "typing":
-			// 正在输入提示 - 发送给指定接收者
-			if receiver, ok := payload.Data["receiver_id"].(string); ok {
-				fmt.Printf("⌨️ 输入提示: %s 正在输入\n", c.UserID)
-				WSManager.SendToUser(receiver, payload)
-			}
+		//case "typing":
+		//	// 正在输入提示 - 发送给指定接收者
+		//	if receiver, ok := payload.Data["receiver_id"].(string); ok {
+		//		fmt.Printf("⌨️ 输入提示: %s 正在输入\n", c.UserID)
+		//		WSManager.SendToUser(receiver, payload)
+		//	}
 
 		case "online":
 			// 用户在线状态更新 - 广播给所有用户
