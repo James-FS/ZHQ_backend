@@ -108,7 +108,7 @@ func GetOrCreateSession(userID1, userID2 string) (string, error) {
 
 	// 查找是否已存在该会话
 	var existingSession models.ChatSession
-	result := database.DB.Where("user_id_1 = ? AND user_id_2 = ?  AND session_type = ?", userID1, userID2, "private").
+	result := database.DB.Where("user_id1 = ? AND user_id2 = ?  AND session_type = ?", userID1, userID2, "private").
 		First(&existingSession)
 
 	if result.Error == nil {

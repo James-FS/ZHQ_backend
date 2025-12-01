@@ -49,7 +49,7 @@ func WebSocketHandler(c *gin.Context) {
 	// 注册客户端到管理器
 	utils.WSManager.Register <- client
 	// 这条线会触发 WSManager.Run() 中的 case client := <-wm.Register:
-
+	go utils.SendOfflineMessages(userID)
 	go client.ReadMessages()  // 监听客户端发来的消息
 	go client.WriteMessages() // 发送消息给客户端
 }

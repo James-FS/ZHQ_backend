@@ -45,6 +45,8 @@ func autoMigrate() {
 		&models.Team{},
 		&models.UserResume{},
 		&models.UserCollection{},
+		&models.ChatSession{},
+		&models.Message{},
 		// 添加其他模型...
 	)
 	if err != nil {
