@@ -16,39 +16,91 @@ func GetTeamList(c *gin.Context) {
 	var teams []models.Team
 	var total int64
 
-	//1.计算总数
+	//1.获取查询参数(可选)
+	teamID := c.Query("team_id")
+	teamName := c.Query("team_name")
+	tags := c.Query("tags")
+	CreatorID := c.Query("creator_id")
+	creatorNickName := c.Query("creator_nickname")
+	content := c.Query("content")
+
+	//2.初始化查询
 	tx := database.GetDB().Model(&models.Team{})
+
+	//3.应用过滤条件
+	if teamID != "" {
+		tx = tx.Where("team_id = ?", teamID) //精确查询
+	}
+	if teamName != "" {
+		tx = tx.Where("team_name LIKE ?", "%"+teamName+"%") //模糊查
+	}
+	if tags != "" {
+		tx = tx.Where("JSON_CONTAINS(tags, ?, '$')", "'"+tags+"'") //模糊查
+	}
+	if CreatorID != "" {
+		tx = tx.Where("creator_id = ?", CreatorID) //精确查询
+	}
+	if content != "" {
+		tx = tx.Where("content LIKE ?", "%"+content+"%") //模糊查询
+	}
+
+	// 通过关联查询用户表获取CreatorID列表
+	if creatorNickName != "" {
+		var userIDs []string
+
+		// 查询匹配昵称的用户ID列表
+		if err := database.GetDB().
+			Model(&models.User{}). // 显式指定查询的模型
+			Where("nickname LIKE ?", "%"+creatorNickName+"%").
+			Pluck("user_id", &userIDs).Error; err != nil {
+			utils.InternalServerError(c, "获取创建者信息失败:", err)
+			return
+		}
+
+		if len(userIDs) > 0 {
+			tx = tx.Where("creator_id IN (?)", userIDs)
+		} else {
+			// 如果没有匹配的用户，直接返回空结果
+			utils.Success(c, gin.H{
+				"list":  []models.Team{},
+				"total": 0,
+			})
+			return
+		}
+	}
+
+	// 5.计算总数
 	if err := tx.Count(&total).Error; err != nil {
 		utils.InternalServerError(c, "获取队伍总数失败:", err)
 		return
 	}
 
-	//2.获取列表（按创建时间排序）
+	// 6.获取列表（按创建时间排序）
 	if err := tx.Order("created_at DESC").Find(&teams).Error; err != nil {
 		utils.InternalServerError(c, "获取队伍列表失败:", err)
 		return
 	}
 
-	//3.获取队伍创建者UserID
+	// 7.获取队伍创建者UserID
 	var creatorIDs []string
 	for _, team := range teams {
 		creatorIDs = append(creatorIDs, team.CreatorID)
 	}
 
-	// 4.批量查询用户信息（根据string类型的UserID查询）
+	// 8.批量查询用户信息（根据string类型的UserID查询）
 	var users []models.User
 	if err := database.GetDB().Where("user_id IN (?)", creatorIDs).Find(&users).Error; err != nil {
 		utils.InternalServerError(c, "获取创建者信息失败:", err)
 		return
 	}
 
-	// 5.将用户信息映射为map，key为string类型的UserID
+	// 9.将用户信息映射为map，key为string类型的UserID
 	userMap := make(map[string]models.User)
 	for _, user := range users {
 		userMap[user.UserID] = user // 假设User模型中用户ID字段是UserID(string类型)
 	}
 
-	// 6.组装包含用户信息的响应数据
+	// 10.组装包含用户信息的响应数据
 	type TeamWithCreator struct {
 		models.Team
 		CreatorNickname string   `json:"creator_nickname"`
@@ -82,7 +134,7 @@ func GetTeamList(c *gin.Context) {
 		})
 	}
 
-	// 7.返回结果
+	// 11.返回结果
 	utils.Success(c, gin.H{
 		"list":  resultList,
 		"total": total,
