@@ -131,7 +131,19 @@ func GetOrCreateSession(userID1, userID2 string) (string, error) {
 	return session.SessionID, nil
 }
 
-func SaveMessageToDatabase(receiverID string, message interface{}) error {
+func UpdateChatSessionLastMessage(sessionID, content string) error {
+	return database.DB.
+		Model(&models.ChatSession{}).
+		Where("session_id = ?", sessionID).
+		Updates(map[string]interface{}{
+			"last_message":      content,
+			"last_message_time": time.Now(),
+			"update_time":       time.Now(),
+		}).Error
+}
+
+// SaveMessageToDatabase 保存离线信息到数据库
+func SaveMessageToDatabase(receiverID string, message interface{}, isActive bool) error {
 	// 将消息转换为 MessagePayload
 	var payload MessagePayload
 
@@ -160,7 +172,7 @@ func SaveMessageToDatabase(receiverID string, message interface{}) error {
 		SessionID:    sessionID,
 		Content:      payload.Content,
 		ContentTypes: "text",
-		SendStatus:   false,
+		SendStatus:   isActive,
 	}
 
 	// 保存到数据库
@@ -244,20 +256,25 @@ func (wm *WebSocketManager) SendToUser(userID string, message interface{}) error
 	client, exists := wm.Clients[userID]
 	wm.mu.RUnlock()
 
-	if !exists || !client.IsActive {
-		return SaveMessageToDatabase(userID, message)
+	if err := SaveMessageToDatabase(userID, message, exists && client.IsActive); err != nil {
+		return err
 	}
 
-	select {
-	case client.Send <- message:
-		return nil
-	default:
-		return SaveMessageToDatabase(userID, message)
+	if exists && client.IsActive {
+		select {
+		case client.Send <- message:
+			fmt.Printf("消息已放入队列: %s\n", userID)
+			return nil
+		default:
+			fmt.Printf("消息队列已满，仅保存到数据库: %s\n", userID)
+			return nil
+		}
 	}
+
+	return nil
 }
 
 // GetOnlineUsers 获取所有在线用户列表
-// 返回值：
 //
 //	[]string - 在线用户的 ID 列表
 func (wm *WebSocketManager) GetOnlineUsers() []string {
@@ -339,6 +356,11 @@ func (c *WebSocketClient) ReadMessages() {
 					continue
 				}
 				payload.Data["session_id"] = sessionID
+
+				if err := UpdateChatSessionLastMessage(sessionID, payload.Content); err != nil {
+					fmt.Printf("⚠️ 更新会话最后消息失败: %v\n", err)
+				}
+
 				if err := WSManager.SendToUser(receiver, payload); err != nil {
 					fmt.Printf("⚠️ 消息发送失败: %v\n", err)
 				}
