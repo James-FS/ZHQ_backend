@@ -67,6 +67,7 @@ func SetupRoutes(r *gin.Engine) {
 				chat.GET("/ws", controllers.WebSocketHandler)
 				chat.GET("/online", controllers.GetOnlineUsers)
 				chat.GET("/check-online", controllers.CheckUserOnline)
+				chat.GET("/history", controllers.GetChatHistory)
 			}
 
 			// 好友相关
