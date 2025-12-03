@@ -68,6 +68,18 @@ func SetupRoutes(r *gin.Engine) {
 				chat.GET("/online", controllers.GetOnlineUsers)
 				chat.GET("/check-online", controllers.CheckUserOnline)
 			}
+
+			// 好友相关
+			friends := authorized.Group("/friend")
+			{
+				friends.GET("", controllers.GetFriendList)              //获取好友列表
+				friends.POST("", controllers.AddFriend)                 //发送好友请求
+				friends.GET("/requests", controllers.GetFriendRequests) //获取好友请求
+				friends.POST("/accept", controllers.AcceptFriend)       //接受好友请求
+				friends.POST("/reject", controllers.RejectFriend)       //拒绝好友请求
+				friends.GET("/check", controllers.CheckFriendship)      // 检查是否为好友
+
+			}
 		}
 	}
 }
