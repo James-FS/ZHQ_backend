@@ -68,6 +68,7 @@ func SetupRoutes(r *gin.Engine) {
 				chat.GET("/online", controllers.GetOnlineUsers)
 				chat.GET("/check-online", controllers.CheckUserOnline)
 				chat.GET("/history", controllers.GetChatHistory)
+				chat.GET("/list", controllers.GetChatList)
 			}
 		}
 	}
