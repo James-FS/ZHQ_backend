@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 	"zhq-backend/database"
 	"zhq-backend/models"
 	"zhq-backend/utils"
@@ -116,6 +117,81 @@ func GetChatHistory(c *gin.Context) {
 		"limit":    count,
 		"offset":   page,
 	})
+}
+
+// GetChatList 获取聊天列表
+func GetChatList(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		utils.BadRequest(c, "用户未登录")
+		return
+	}
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("page_size", "10")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize <= 0 || pageSize > 100 {
+		pageSize = 10
+	}
+	var sessions []models.ChatSession
+	var total int64
+	offset := (page - 1) * pageSize
+	list := database.DB.
+		Where("(user_id1 = ? OR user_id2 = ?) AND deleted_at IS NULL", userID, userID).
+		Model(&models.ChatSession{}).
+		Count(&total).
+		Order("last_msg_time DESC").
+		Limit(pageSize).
+		Offset(offset).
+		Find(&sessions)
+
+	if list.Error != nil {
+		utils.InternalServerError(c, "查询聊天列表失败: ", list.Error)
+		return
+	}
+
+	type ChatListItem struct {
+		SessionID     string     `json:"session_id"`     // 会话ID
+		LastMessage   string     `json:"last_message"`   // 最后一条消息
+		LastMsgTime   *time.Time `json:"last_msg_time"`  // 最后消息时间
+		OtherUserID   string     `json:"other_user_id"`  // 另一个用户ID
+		SessionName   string     `json:"session_name"`   // 另一个用户昵称
+		SessionAvatar string     `json:"session_avatar"` // 另一个用户头像
+	}
+
+	var chatList []ChatListItem
+	for _, session := range sessions {
+		var otherUserID string
+		if session.UserID1 == userID {
+			otherUserID = session.UserID2
+		} else {
+			otherUserID = session.UserID1
+		}
+		var otherUser models.User
+		if err := database.DB.
+			Where("user_id = ? ", otherUserID).
+			First(&otherUser).Error; err != nil {
+			fmt.Printf("❌ 查询用户信息失败: %v\n", err)
+			continue
+		}
+		chatList = append(chatList, ChatListItem{
+			SessionID:     session.SessionID,
+			LastMessage:   session.LastMessage,
+			LastMsgTime:   session.LastMsgTime,
+			OtherUserID:   otherUserID,
+			SessionName:   otherUser.Nickname,
+			SessionAvatar: otherUser.Avatar,
+		})
+	}
+	utils.Success(c, gin.H{
+		"chat_list": chatList,
+		"total":     total,
+	})
+
 }
 
 // GetOnlineUsers 获取在线用户列表

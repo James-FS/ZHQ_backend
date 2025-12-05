@@ -136,14 +136,21 @@ func UpdateChatSessionLastMessage(sessionID, content string) error {
 		Model(&models.ChatSession{}).
 		Where("session_id = ?", sessionID).
 		Updates(map[string]interface{}{
-			"last_message":      content,
-			"last_message_time": time.Now(),
-			"update_time":       time.Now(),
+			"last_message":  content,
+			"last_msg_time": time.Now(),
+			"updated_at":    time.Now(),
 		}).Error
 }
 
 // SaveMessageToDatabase 保存离线信息到数据库
 func SaveMessageToDatabase(receiverID string, message interface{}, isActive bool) error {
+	if receiverID == "" {
+		return fmt.Errorf("receiverID 不能为空")
+	}
+
+	if message == nil {
+		return fmt.Errorf("message 不能为空")
+	}
 	// 将消息转换为 MessagePayload
 	var payload MessagePayload
 
@@ -151,8 +158,13 @@ func SaveMessageToDatabase(receiverID string, message interface{}, isActive bool
 		payload = msgPayload
 	} else {
 		// 如果是 map 格式，转换为 MessagePayload
-		msgJSON, _ := json.Marshal(message)
-		json.Unmarshal(msgJSON, &payload)
+		msgJSON, err := json.Marshal(message)
+		if err != nil {
+			return fmt.Errorf("消息序列化失败: %v", err)
+		}
+		if err := json.Unmarshal(msgJSON, &payload); err != nil {
+			return fmt.Errorf("消息反序列化失败: %v", err)
+		}
 	}
 
 	// 如果消息类型不是 chat，则不保存
@@ -160,6 +172,13 @@ func SaveMessageToDatabase(receiverID string, message interface{}, isActive bool
 		return nil
 	}
 
+	if payload.SenderID == "" {
+		return fmt.Errorf("senderID 不能为空")
+	}
+
+	if payload.Content == "" {
+		return fmt.Errorf("content 不能为空")
+	}
 	var sessionID string
 	if sid, ok := payload.Data["session_id"].(string); ok {
 		sessionID = sid
@@ -179,8 +198,11 @@ func SaveMessageToDatabase(receiverID string, message interface{}, isActive bool
 	if err := database.DB.Create(&msg).Error; err != nil {
 		return fmt.Errorf("保存离线消息失败: %v", err)
 	}
+	if err := UpdateChatSessionLastMessage(sessionID, payload.Content); err != nil {
+		fmt.Printf("⚠️ 更新会话最后消息失败: %v\n", err)
+	}
 
-	fmt.Printf("💾 离线消息已保存: %s -> %s\n", payload.SenderID, receiverID)
+	fmt.Printf("💾消息已保存: %s -> %s\n", payload.SenderID, receiverID)
 	return nil
 }
 
@@ -252,6 +274,9 @@ func NewWebSocketClient(userID string, conn *websocket.Conn) *WebSocketClient {
 // SendToUser 发送消息到指定用户
 
 func (wm *WebSocketManager) SendToUser(userID string, message interface{}) error {
+	if userID == "" {
+		return fmt.Errorf("userID 不能为空")
+	}
 	wm.mu.RLock()
 	client, exists := wm.Clients[userID]
 	wm.mu.RUnlock()
@@ -357,9 +382,9 @@ func (c *WebSocketClient) ReadMessages() {
 				}
 				payload.Data["session_id"] = sessionID
 
-				if err := UpdateChatSessionLastMessage(sessionID, payload.Content); err != nil {
-					fmt.Printf("⚠️ 更新会话最后消息失败: %v\n", err)
-				}
+				//if err := UpdateChatSessionLastMessage(sessionID, payload.Content); err != nil {
+				//	fmt.Printf("⚠️ 更新会话最后消息失败: %v\n", err)
+				//}
 
 				if err := WSManager.SendToUser(receiver, payload); err != nil {
 					fmt.Printf("⚠️ 消息发送失败: %v\n", err)
