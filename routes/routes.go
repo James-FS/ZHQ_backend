@@ -35,6 +35,9 @@ func SetupRoutes(r *gin.Engine) {
 		v1.GET("/teams", controllers.GetTeamList)
 		v1.GET("/team/details/:team_id", controllers.GetTeamDetails)
 
+		// 路线规划（无需登录）
+		v1.POST("/route", controllers.GetRoute)
+
 		// 需要认证的路由
 		authorized := v1.Group("/")
 		authorized.Use(middleware.AuthRequired())
