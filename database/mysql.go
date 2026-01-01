@@ -48,6 +48,8 @@ func autoMigrate() {
 		&models.ChatSession{},
 		&models.Message{},
 		&models.Friend{},
+		&models.Course{},
+		&models.CourseSchedulePDF{},
 		// 添加其他模型...
 	)
 	if err != nil {
