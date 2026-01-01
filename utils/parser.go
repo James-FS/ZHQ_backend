@@ -23,7 +23,6 @@ type CourseFromPDF struct {
 }
 
 // ParseCourseHTML 直接解析HTML表格
-// ParseCourseHTML 直接解析HTML表格
 func ParseCourseHTML(htmlPath string) ([]CourseFromPDF, error) {
 	htmlBytes, err := os.ReadFile(htmlPath)
 	if err != nil {
@@ -132,7 +131,7 @@ func ParseCourseHTML(htmlPath string) ([]CourseFromPDF, error) {
 			}
 
 			// 解析课程
-			fmt.Printf("🔄 [DEBUG] 开始解析.. .\n")
+			fmt.Printf("🔄 [DEBUG] 开始解析...\n")
 			course := parseCourseCell(text, weekDay)
 			fmt.Printf("✅ [DEBUG] 解析结果: 课程=%s | 教师=%s | 教室=%s | 节次=%d-%d\n",
 				course.CourseName, course.Teacher, course.Classroom,
@@ -147,7 +146,7 @@ func ParseCourseHTML(htmlPath string) ([]CourseFromPDF, error) {
 	return courses, nil
 }
 
-// / 获取表格单元格
+// getTableCells 获取表格单元格
 func getTableCells(row *html.Node) []*html.Node {
 	var cells []*html.Node
 	for c := row.FirstChild; c != nil; c = c.NextSibling {
@@ -158,7 +157,7 @@ func getTableCells(row *html.Node) []*html.Node {
 	return cells
 }
 
-// 获取节点文本
+// getNodeText 获取节点文本
 func getNodeText(n *html.Node) string {
 	if n.Type == html.TextNode {
 		return n.Data
@@ -170,7 +169,7 @@ func getNodeText(n *html.Node) string {
 	return text.String()
 }
 
-// 解析单个课程单元格
+// parseCourseCell 解析单个课程单元格
 func parseCourseCell(text string, weekDay int) CourseFromPDF {
 	course := CourseFromPDF{
 		WeekDay:      weekDay,
@@ -227,10 +226,9 @@ func parseCourseCell(text string, weekDay int) CourseFromPDF {
 		}
 
 		// 教室：场地: 文渊607
-		if strings.Contains(line, "场地: ") {
-			parts := strings.Split(line, "场地:")
-			if len(parts) > 1 {
-				classroom := strings.TrimSpace(parts[1])
+		if strings.Contains(line, "场地") {
+			if classroomMatch := regexp.MustCompile(`场地[:：\s]*([^\s/\n]+)`).FindStringSubmatch(line); len(classroomMatch) > 1 {
+				classroom := strings.TrimSpace(classroomMatch[1])
 				// 去掉 "/" 后的内容
 				if idx := strings.Index(classroom, "/"); idx > 0 {
 					classroom = strings.TrimSpace(classroom[:idx])
@@ -248,24 +246,24 @@ func parseCourseCell(text string, weekDay int) CourseFromPDF {
 
 		// 教师：教师:王显珉
 		if strings.Contains(line, "教师: ") {
-			fmt.Printf("    🔍 [DEBUG] 原始教师行: %s\n", line)
+			// fmt.Printf("    🔍 [DEBUG] 原始教师行: %s\n", line)
 
 			parts := strings.Split(line, "教师:")
 			if len(parts) > 1 {
 				teacher := strings.TrimSpace(parts[1])
-				fmt.Printf("    🔍 [DEBUG] 分割后:  %s\n", teacher)
+				// fmt.Printf("    🔍 [DEBUG] 分割后: %s\n", teacher)
 
 				// 去掉"教学班"后的所有内容
 				if idx := strings.Index(teacher, "教学班"); idx > 0 {
 					teacher = strings.TrimSpace(teacher[:idx])
-					fmt.Printf("    🔍 [DEBUG] 去除教学班后: %s\n", teacher)
+					// fmt.Printf("    🔍 [DEBUG] 去除教学班后: %s\n", teacher)
 				}
 
 				// 只取第一个词（教师名）
 				words := strings.Fields(teacher)
 				if len(words) > 0 {
 					teacher = words[0]
-					fmt.Printf("    🔍 [DEBUG] 取第一个词: %s\n", teacher)
+					// fmt.Printf("    🔍 [DEBUG] 取第一个词: %s\n", teacher)
 				}
 
 				// 限制长度
@@ -300,7 +298,7 @@ func ExtractTextFromHTMLFile(htmlPath string) (string, error) {
 	// 解析HTML
 	doc, err := html.Parse(strings.NewReader(string(htmlBytes)))
 	if err != nil {
-		return "", fmt.Errorf("解析HTML失败:  %w", err)
+		return "", fmt.Errorf("解析HTML失败: %w", err)
 	}
 
 	// 提取文本
@@ -331,7 +329,6 @@ func ExtractTextFromHTMLFile(htmlPath string) (string, error) {
 }
 
 // ParseCourseText 解析课程表文本
-// ParseCourseText 解析课程表文本
 func ParseCourseText(text string) []CourseFromPDF {
 	var courses []CourseFromPDF
 
@@ -342,6 +339,14 @@ func ParseCourseText(text string) []CourseFromPDF {
 	currentWeekDay := 0
 	currentSectionStart := 1 // 当前节次起始
 	currentSectionEnd := 2   // 当前节次结束
+
+	fmt.Println("\n=== 完整文本行列表 ===")
+	for idx, line := range lines {
+		if strings.TrimSpace(line) != "" {
+			fmt.Printf("[Line %d] %s\n", idx, line)
+		}
+	}
+	fmt.Println("=== 文本行列表结束 ===\n")
 
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
@@ -439,19 +444,64 @@ func ParseCourseText(text string) []CourseFromPDF {
 				}
 			}
 
-			// 提取教室：/场地: 文渊607
-			if strings.Contains(line, "场地:") {
-				if classroomMatch := regexp.MustCompile(`场地[:  ：]([^/\n]+)`).FindStringSubmatch(line); len(classroomMatch) > 1 {
-					classroom := strings.TrimSpace(classroomMatch[1])
+			// 提取教室：支持多种格式
+			if strings.Contains(line, "场地") || strings.Contains(line, "教室") || strings.Contains(line, "地点") {
+				fmt.Printf("    🔍 [DEBUG] 原始教室行: %s\n", line)
 
+				var classroom string
+
+				// 尝试多种正则模式
+				patterns := []string{
+					`场地[:：\s]*([^\s/\n]+)`,
+					`教室[:：\s]*([^\s/\n]+)`,
+					`地点[:：\s]*([^\s/\n]+)`,
+				}
+
+				for _, pattern := range patterns {
+					if classroomMatch := regexp.MustCompile(pattern).FindStringSubmatch(line); len(classroomMatch) > 1 {
+						classroom = strings.TrimSpace(classroomMatch[1])
+						fmt.Printf("    🔍 [DEBUG] 正则(%s)匹配: %s\n", pattern, classroom)
+						break
+					}
+				}
+
+				// 如果正则没匹配，尝试简单分割
+				if classroom == "" {
+					if strings.Contains(line, "场地") {
+						parts := strings.Split(line, "场地")
+						if len(parts) > 1 {
+							classroom = strings.TrimSpace(parts[1])
+							classroom = strings.TrimLeft(classroom, ":：")
+							classroom = strings.TrimSpace(classroom)
+						}
+					} else if strings.Contains(line, "教室") {
+						parts := strings.Split(line, "教室")
+						if len(parts) > 1 {
+							classroom = strings.TrimSpace(parts[1])
+							classroom = strings.TrimLeft(classroom, ":：")
+							classroom = strings.TrimSpace(classroom)
+						}
+					}
+				}
+
+				// 清理教室名
+				if classroom != "" {
 					// 去掉 "/" 后的内容
 					if idx := strings.Index(classroom, "/"); idx > 0 {
 						classroom = strings.TrimSpace(classroom[:idx])
+						fmt.Printf("    🔍 [DEBUG] 去除/后: %s\n", classroom)
 					}
 
 					// 去掉"教师:"后的内容
-					if idx := strings.Index(classroom, "教师:"); idx > 0 {
+					if idx := strings.Index(classroom, "教师"); idx > 0 {
 						classroom = strings.TrimSpace(classroom[:idx])
+						fmt.Printf("    🔍 [DEBUG] 去除教师后: %s\n", classroom)
+					}
+
+					// 只取第一个单词
+					words := strings.Fields(classroom)
+					if len(words) > 0 {
+						classroom = words[0]
 					}
 
 					// 限制长度
@@ -459,14 +509,21 @@ func ParseCourseText(text string) []CourseFromPDF {
 						classroom = classroom[:100]
 					}
 
-					currentCourse.Classroom = classroom
+					if classroom != "" && classroom != "/" && classroom != "：" && classroom != ":" {
+						currentCourse.Classroom = classroom
+						fmt.Printf("    🏫 [DEBUG] 最终教室: %s\n", classroom)
+					}
 				}
 			}
 
-			// 提取教师：/教师: 赵崇和
-			if strings.Contains(line, "教师:") {
-				if teacherMatch := regexp.MustCompile(`教师[:：]([^/\n]+)`).FindStringSubmatch(line); len(teacherMatch) > 1 {
-					teacher := strings.TrimSpace(teacherMatch[1])
+			// 提取教师
+			if strings.Contains(line, "教师: ") {
+				fmt.Printf("    🔍 [DEBUG] 原始教师行: %s\n", line)
+
+				parts := strings.Split(line, "教师:")
+				if len(parts) > 1 {
+					teacher := strings.TrimSpace(parts[1])
+					// fmt.Printf("    🔍 [DEBUG] 分割后: %s\n", teacher)
 
 					// 只保留教师名（去掉"教学班"后面的内容）
 					if idx := strings.Index(teacher, "教学班"); idx > 0 {
@@ -485,6 +542,7 @@ func ParseCourseText(text string) []CourseFromPDF {
 					}
 
 					currentCourse.Teacher = teacher
+					fmt.Printf("    👨‍🏫 [DEBUG] 最终教师名: %s\n", teacher)
 				}
 			}
 
