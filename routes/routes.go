@@ -38,6 +38,16 @@ func SetupRoutes(r *gin.Engine) {
 		// 路线规划（无需登录）
 		v1.POST("/route", controllers.GetRoute)
 
+		// 校园地点相关（无需登录）
+		locations := v1.Group("/locations")
+		{
+			locations.GET("", controllers.GetLocations)                    // 获取所有地点（支持分页和分类筛选）
+			locations.GET("/search", controllers.SearchLocations)          // 搜索地点
+			locations.GET("/categories", controllers.GetLocationCategories) // 获取所有分类及数量
+			locations.GET("/category/:category", controllers.GetLocationsByCategory) // 按分类获取地点
+			locations.GET("/:id", controllers.GetLocationDetail)           // 获取地点详情
+		}
+
 		// 需要认证的路由
 		authorized := v1.Group("/")
 		authorized.Use(middleware.AuthRequired())
@@ -97,6 +107,17 @@ func SetupRoutes(r *gin.Engine) {
 				course.GET("/all", controllers.GetAllCourses)
 				course.DELETE("/schedule", controllers.DeleteCourseSchedule)
 				course.POST("/test-parse-html", controllers.TestParseHTML)
+			}
+
+			// 地点管理（仅管理员）
+			admin := authorized.Group("/admin")
+			{
+				locations := admin.Group("/locations")
+				{
+					locations.POST("", controllers.CreateLocation)        // 创建地点
+					locations.PUT("/:id", controllers.UpdateLocation)     // 更新地点
+					locations.DELETE("/:id", controllers.DeleteLocation)  // 删除地点
+				}
 			}
 		}
 	}
