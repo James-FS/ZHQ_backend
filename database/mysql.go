@@ -51,6 +51,7 @@ func autoMigrate() {
 		&models.Course{},
 		&models.CourseSchedulePDF{},
 		&models.Location{},
+		&models.TeamMember{},
 		// 添加其他模型...
 	)
 	if err != nil {
