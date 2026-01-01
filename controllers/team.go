@@ -158,6 +158,7 @@ func GetTeamDetails(c *gin.Context) {
 }
 
 // CreateTeam 创建队伍
+// CreateTeam 创建队伍
 func CreateTeam(c *gin.Context) {
 	//1.获取当前登录用户ID(从认证中间件中获取)
 	userID, exists := c.Get("user_id")
@@ -179,7 +180,7 @@ func CreateTeam(c *gin.Context) {
 		ProjectCycle        string   `json:"project_cycle" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, "参数错误:"+err.Error())
+		utils.BadRequest(c, "参数错误: "+err.Error())
 		return
 	}
 
@@ -189,11 +190,11 @@ func CreateTeam(c *gin.Context) {
 	// 新增：将 tags 切片转换为 JSON 字符串
 	tagsJSON, err := json.Marshal(req.Tags)
 	if err != nil {
-		utils.BadRequest(c, "标签格式错误: "+err.Error())
+		utils.BadRequest(c, "标签格式错误:  "+err.Error())
 		return
 	}
 
-	// 4.构造队伍数据
+	// 4. 构造队伍数据
 	team := models.Team{
 		TeamID:              teamID,
 		TeamName:            req.TeamName,
@@ -210,9 +211,39 @@ func CreateTeam(c *gin.Context) {
 		ProjectCycle:        req.ProjectCycle,
 	}
 
-	//5.存入数据库
-	if err := database.GetDB().Create(&team).Error; err != nil {
+	// 👇 新增：使用事务确保数据一致性
+	db := database.GetDB()
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			utils.InternalServerError(c, "创建队伍失败", nil)
+		}
+	}()
+
+	// 5.存入队伍数据
+	if err := tx.Create(&team).Error; err != nil {
+		tx.Rollback()
 		utils.InternalServerError(c, "创建队伍失败:", err)
+		return
+	}
+
+	// 👇 新增：自动添加创建者为队伍成员（队长）
+	teamMember := models.TeamMember{
+		TeamID: teamID,
+		UserID: userID.(string),
+		Role:   1, // 1 表示队长
+	}
+	if err := tx.Create(&teamMember).Error; err != nil {
+		tx.Rollback()
+		utils.InternalServerError(c, "添加队伍成员失败:", err)
+		return
+	}
+
+	// 👇 提交事务
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		utils.InternalServerError(c, "提交事务失败:", err)
 		return
 	}
 
