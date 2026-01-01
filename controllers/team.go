@@ -264,3 +264,189 @@ func UpdateTeam(c *gin.Context) {
 
 	utils.SuccessWithMessage(c, "编辑成功", team)
 }
+
+func JoinTeam(c *gin.Context) {
+	// 1. 获取当前登录用户ID
+	userID := c.GetString("user_id")
+	if userID == "" {
+		utils.Unauthorized(c, "请先登录")
+		return
+	}
+
+	// 2.获取队伍ID
+	teamID := c.Param("team_id")
+	if teamID == "" {
+		utils.BadRequest(c, "队伍ID不能为空")
+		return
+	}
+
+	// 3.检查队伍是否存在
+	var team models.Team
+	if err := database.GetDB().Where("team_id = ?", teamID).First(&team).Error; err != nil {
+		utils.BadRequest(c, "队伍不存在")
+		return
+	}
+
+	// 4.检查队伍状态
+	if team.Status != 1 {
+		utils.BadRequest(c, "该队伍当前不在招募中")
+		return
+	}
+
+	// 5.检查是否已经加入
+	var existingMember models.TeamMember
+	if err := database.GetDB().
+		Where("team_id = ?  AND user_id = ?", teamID, userID).
+		First(&existingMember).Error; err == nil {
+		utils.BadRequest(c, "你已经加入该队伍")
+		return
+	}
+
+	// 6.检查队伍是否已满
+	if team.CurrentMembers >= team.MaxMembers {
+		utils.BadRequest(c, "队伍人数已满")
+		return
+	}
+
+	db := database.GetDB()
+	// 7.开启事务
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			utils.InternalServerError(c, "加入队伍失败", nil)
+		}
+	}()
+
+	// 8.创建队伍成员记录
+	teamMember := models.TeamMember{
+		TeamID: teamID,
+		UserID: userID,
+		Role:   0, // 普通成员
+	}
+	if err := tx.Create(&teamMember).Error; err != nil {
+		tx.Rollback()
+		utils.InternalServerError(c, "加入队伍失败:", err)
+		return
+	}
+
+	// 9.更新队伍当前成员数
+	if err := tx.Model(&models.Team{}).
+		Where("team_id = ?", teamID).
+		UpdateColumn("current_members", team.CurrentMembers+1).Error; err != nil {
+		tx.Rollback()
+		utils.InternalServerError(c, "更新队伍成员数失败:", err)
+		return
+	}
+
+	// 10.提交事务
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		utils.InternalServerError(c, "提交事务失败:", err)
+		return
+	}
+
+	utils.SuccessWithMessage(c, "加入队伍成功", gin.H{
+		"team_id":   teamID,
+		"user_id":   userID,
+		"team_name": team.TeamName,
+	})
+}
+
+func GetMyTeams(c *gin.Context) {
+	// 1.获取当前登录用户ID
+	userID := c.GetString("user_id")
+	if userID == "" {
+		utils.Unauthorized(c, "请先登录")
+		return
+	}
+
+	// 2.查询用户加入的所有队伍ID
+	var teamIDs []string
+	if err := database.GetDB().
+		Model(&models.TeamMember{}).
+		Where("user_id = ?", userID).
+		Pluck("team_id", &teamIDs).Error; err != nil {
+		utils.InternalServerError(c, "获取队伍列表失败:", err)
+		return
+	}
+
+	// 3.如果用户没有加入任何队伍，返回空列表
+	if len(teamIDs) == 0 {
+		utils.Success(c, gin.H{
+			"list":  []interface{}{},
+			"total": 0,
+		})
+		return
+	}
+
+	// 4.根据队伍ID列表查询队伍详情
+	var teams []models.Team
+	if err := database.GetDB().
+		Where("team_id IN (?)", teamIDs).
+		Order("created_at DESC").
+		Find(&teams).Error; err != nil {
+		utils.InternalServerError(c, "获取队伍详情失败:", err)
+		return
+	}
+
+	// 5.获取队伍创建者UserID
+	var creatorIDs []string
+	for _, team := range teams {
+		creatorIDs = append(creatorIDs, team.CreatorID)
+	}
+
+	// 6.批量查询用户信息
+	var users []models.User
+	if err := database.GetDB().Where("user_id IN (?)", creatorIDs).Find(&users).Error; err != nil {
+		utils.InternalServerError(c, "获取创建者信息失败:", err)
+		return
+	}
+
+	// 7.将用户信息映射为map
+	userMap := make(map[string]models.User)
+	for _, user := range users {
+		userMap[user.UserID] = user
+	}
+
+	// 8.组装包含用户信息的响应数据
+	type TeamWithCreator struct {
+		models.Team
+		CreatorNickname string   `json:"creator_nickname"`
+		CreatorAvatar   string   `json:"creator_avatar"`
+		TagsArray       []string `json:"tags"`
+	}
+
+	var resultList []TeamWithCreator
+	for _, team := range teams {
+		creator, exists := userMap[team.CreatorID]
+		creatorNickname := ""
+		creatorAvatar := ""
+		if exists {
+			creatorNickname = creator.Nickname
+			creatorAvatar = creator.Avatar
+		}
+
+		var tagsArray []string
+		if team.Tags != "" {
+			err := json.Unmarshal([]byte(team.Tags), &tagsArray)
+			if err != nil {
+				// 如果解析失败，使用空数组
+				tagsArray = []string{}
+			}
+		}
+
+		resultList = append(resultList, TeamWithCreator{
+			Team:            team,
+			CreatorNickname: creatorNickname,
+			CreatorAvatar:   creatorAvatar,
+			TagsArray:       tagsArray,
+		})
+	}
+
+	// 9.返回结果
+	utils.Success(c, gin.H{
+		"list":  resultList,
+		"total": len(resultList),
+	})
+}
