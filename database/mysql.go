@@ -50,6 +50,7 @@ func autoMigrate() {
 		&models.Friend{},
 		&models.Course{},
 		&models.CourseSchedulePDF{},
+		&models.Location{},
 		&models.TeamMember{},
 		// 添加其他模型...
 	)
