@@ -101,14 +101,12 @@ func SetupRoutes(r *gin.Engine) {
 			// 课程表
 			course := authorized.Group("/course")
 			{
-				course.POST("/upload-pdf", controllers.UploadCoursePDF)
+
 				course.POST("/upload-html", controllers.UploadCourseHTML) // ← 添加这行
-				course.POST("/parse-text", controllers.ParseCourseText)
 				course.POST("/manual-add", controllers.ManualAddCourse)
 				course.GET("/week", controllers.GetCoursesByWeek)
 				course.GET("/all", controllers.GetAllCourses)
 				course.DELETE("/schedule", controllers.DeleteCourseSchedule)
-				course.POST("/test-parse-html", controllers.TestParseHTML)
 			}
 
 			// 地点管理（仅管理员）
